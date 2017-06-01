@@ -1,6 +1,4 @@
-#!/usr/bin/env node
-
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -8,39 +6,39 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * 
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
+ *  KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
- 
-var fs = require('fs'),
-    shjs = require('shelljs'),
-    path = require('path'),
-    check_reqs = require('./check_reqs'),
-    platformBuildDir = path.join('platforms', 'browser', 'build');
 
-exports.cleanProject = function(){
+/*jshint node: true*/
 
-    // Check that requirements are (stil) met
-    if (!check_reqs.run()) {
-        console.error('Please make sure you meet the software requirements in order to clean an browser cordova project');
-        process.exit(2);
+var Q     = require('q'),
+    path  = require('path'),
+    shell = require('shelljs'),
+    spawn = require('./spawn');
+
+var projectPath = path.join(__dirname, '..', '..');
+
+module.exports.run = function() {
+    var projectName = shell.ls(projectPath).filter(function (name) {
+        return path.extname(name) === '.xcodeproj';
+    })[0];
+
+    if (!projectName) {
+        return Q.reject('No Xcode project found in ' + projectPath);
     }
-    
-    console.log('Cleaning Browser project');
-    try {
-        if (fs.existsSync(platformBuildDir)) {
-            shjs.rm('-r', platformBuildDir);
-        }
-    }
-    catch(err) {
-        console.log('could not remove '+platformBuildDir+' : '+err.message);
-    }
+
+    return spawn('xcodebuild', ['-project', projectName, '-configuration', 'Debug', '-alltargets', 'clean'], projectPath)
+    .then(function () {
+        return spawn('xcodebuild', ['-project', projectName, '-configuration', 'Release', '-alltargets', 'clean'], projectPath);
+    }).then(function () {
+        return shell.rm('-rf', path.join(projectPath, 'build'));
+    });
 };
-
